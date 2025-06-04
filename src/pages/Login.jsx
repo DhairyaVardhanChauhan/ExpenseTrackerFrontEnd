@@ -1,9 +1,96 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import "../index.css";
 import { motion } from "framer-motion";
 
 const Login = () => {
+  const navigate = useNavigate();
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const checkAccessToken = async () => {
+    const accessToken = localStorage.getItem("accessToken");
+    if (!accessToken) return false;
+    try {
+      const response = await fetch("ping", {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + accessToken,
+        },
+      });
+      return response.ok;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const handleLogin = async () => {
+    const loggedIn = await checkAccessToken();
+    console.log("Access Token valid:", loggedIn);
+    setLoggedIn(loggedIn);
+    if (loggedIn) {
+      navigate("/home");
+    } else {
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (!refreshToken) return;
+      try {
+        const response = await fetch("/auth/v1/refreshToken", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ refreshToken }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          localStorage.setItem("accessToken", data.accessToken);
+          localStorage.setItem("refreshToken", data.refreshToken);
+          setLoggedIn(true);
+          navigate("/home");
+        } else {
+          const error = await response.json();
+          alert(error.message || "Login failed"); // or set an error state
+        }
+      } catch (error) {
+        console.error("Token refresh failed", error);
+      }
+    }
+  };
+
+  const handleSelfLogin = async (e) => {
+    e.preventDefault();
+    const response = await fetch("/auth/v1/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        username,
+        password,
+      }),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      localStorage.setItem("accessToken", data.accessToken);
+      localStorage.setItem("refreshToken", data.refreshToken);
+      setLoggedIn(true);
+      navigate("/home");
+    } else {
+      console.log("ere");
+      const error = await response.json();
+      alert(error.message || "Login failed"); // or set an error state
+    }
+  };
+
+  useEffect(() => {
+    handleLogin();
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -50 }}
@@ -22,26 +109,29 @@ const Login = () => {
           />
         </div>
 
-        {/* Right side with form */}
         <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
           <h2 className="text-3xl font-bold mb-2 text-gray-800 text-center md:text-left">
             Log In
           </h2>
           <p className="text-gray-500 mb-6 text-center md:text-left">
-            Enter your email and password to login to our dashboard.
+            Enter your username and password to login to our dashboard.
           </p>
 
-          <form className="flex flex-col gap-4">
+          <form className="flex flex-col gap-4" onSubmit={handleSelfLogin}>
             <input
-              type="email"
-              name="email"
-              placeholder="Email"
+              type="text"
+              name="username"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="border border-gray-300 p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <input
               type="password"
               name="password"
               placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="border border-gray-300 p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <button
