@@ -2,93 +2,24 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "../index.css";
 import { motion } from "framer-motion";
+import { useAuth } from "../provider/AuthProvider";
+const client_id = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const redirect_uri = import.meta.env.VITE_GOOGLE_REDIRECT_URI;
 
 const Login = () => {
   const navigate = useNavigate();
-  const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const checkAccessToken = async () => {
-    const accessToken = localStorage.getItem("accessToken");
-    if (!accessToken) return false;
-    try {
-      const response = await fetch("ping", {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + accessToken,
-        },
-      });
-      return response.ok;
-    } catch (error) {
-      return false;
-    }
-  };
-
-  const handleLogin = async () => {
-    const loggedIn = await checkAccessToken();
-    console.log("Access Token valid:", loggedIn);
-    setLoggedIn(loggedIn);
-    if (loggedIn) {
-      navigate("/home");
-    } else {
-      const refreshToken = localStorage.getItem("refreshToken");
-      if (!refreshToken) return;
-      try {
-        const response = await fetch("/auth/v1/refreshToken", {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ refreshToken }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem("accessToken", data.accessToken);
-          localStorage.setItem("refreshToken", data.refreshToken);
-          setLoggedIn(true);
-          navigate("/home");
-        } else {
-          const error = await response.json();
-          alert(error.message || "Login failed"); // or set an error state
-        }
-      } catch (error) {
-        console.error("Token refresh failed", error);
-      }
-    }
-  };
+  const { loginWithCredentials } = useAuth();
 
   const handleSelfLogin = async (e) => {
     e.preventDefault();
-    const response = await fetch("/auth/v1/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        username,
-        password,
-      }),
-    });
-    if (response.ok) {
-      const data = await response.json();
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
-      setLoggedIn(true);
-      navigate("/");
-    } else {
-      const error = await response.json();
-      alert(error.message || "Login failed"); // or set an error state
+    try {
+      await loginWithCredentials(username, password);
+    } catch (error) {
+      alert(error.message || "Login failed");
     }
   };
-
-  useEffect(() => {
-    handleLogin();
-  }, []);
 
   return (
     <motion.div
@@ -140,7 +71,21 @@ const Login = () => {
               Sign In
             </button>
           </form>
-
+          <div className="flex justify-center items-center mt-3">
+            <a
+              href={`https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=${redirect_uri}&response_type=code&client_id=${client_id}&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+openid&access_type=offline`}
+              className="flex items-center gap-3 px-6 py-3 text-black border-2 border-solid border-black bg-white hover:bg-gray-200 rounded-xl shadow-md transition duration-300"
+            >
+              <img
+                src="/src/assets/google-logo.png"
+                alt="Google Logo"
+                className="w-6 h-6"
+              />
+              <span className="font-medium cursor-pointer">
+                Sign In with Google
+              </span>
+            </a>
+          </div>
           <div className="mt-4 text-sm text-gray-500 text-center md:text-left">
             Don’t have an account?{" "}
             <Link to="/signup" className="text-indigo-600 hover:underline">
@@ -148,9 +93,12 @@ const Login = () => {
             </Link>
           </div>
           <div className="mt-1 text-center md:text-left">
-            <a href="#" className="text-indigo-500 text-sm hover:underline">
-              Forget Password?
-            </a>
+            <Link
+              to="/forgotPassword"
+              className="text-indigo-500 text-sm hover:underline"
+            >
+              Forgot Password?
+            </Link>
           </div>
         </div>
       </div>

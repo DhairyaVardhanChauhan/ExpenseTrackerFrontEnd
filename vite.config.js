@@ -11,11 +11,6 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      "/ping": {
-        target: "http://localhost:9898",
-        changeOrigin: true,
-        secure: false,
-      },
     },
   },
 });
